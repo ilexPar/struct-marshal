@@ -1,8 +1,9 @@
 package pkg_test
 
 import (
-	"struct-marshal/pkg"
 	"testing"
+
+	"github.com/ilexPar/struct-marshal/pkg"
 
 	cmp "github.com/google/go-cmp/cmp"
 )
