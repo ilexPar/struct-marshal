@@ -7,10 +7,10 @@ import (
 	cmp "github.com/google/go-cmp/cmp"
 )
 
+// Mock a struct internal to an application
 type SystemNested struct {
 	Direction string `jsonpath:"direction"`
 }
-
 type SystemStruct struct {
 	Name        string       `jsonpath:"metadata.namefield"`
 	Count       int          `jsonpath:"config.somecount"`
@@ -19,6 +19,11 @@ type SystemStruct struct {
 	ListedStuff []string     `jsonpath:"config.somelist[0].list"`
 }
 
+// Mock a struct that differs in structure from our internal struct, probably belonging to another API
+type APIObject struct {
+	Metadata APIMetadata `json:"metadata"`
+	Config   APIConfig   `json:"config"`
+}
 type APIListedObjConfig struct {
 	Direction string `json:"direction"`
 }
@@ -33,10 +38,6 @@ type APIMetadata struct {
 type APIConfig struct {
 	SomeCount int            `json:"somecount"`
 	SomeList  []APIListedObj `json:"somelist"`
-}
-type APIObject struct {
-	Metadata APIMetadata `json:"metadata"`
-	Config   APIConfig   `json:"config"`
 }
 
 func TestStructUnmarshal(t *testing.T) {
