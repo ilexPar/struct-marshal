@@ -40,12 +40,12 @@ type InternalObject struct {
 }
 
 func main() {
-dst := &apps.Deployment{}
-src := &InternalObject{
-    Name: "my-dpl",
-    Image: "nginx",
-    Memory: "128Mi",
-}
-sm.StructMmarshal(src, dst) // now dst should have been populated with the expected values from src
+    dst := &apps.Deployment{}
+    src := &InternalObject{
+        Name: "my-dpl",
+        Image: "nginx",
+        Memory: "128Mi",
+    }
+    sm.StructMmarshal(src, dst) // now dst should have been populated with the expected values from src
 }
 ```
