@@ -1,4 +1,4 @@
-module struct-marshal
+module github.com/ilexPar/struct-marshal
 
 go 1.22.2
 
