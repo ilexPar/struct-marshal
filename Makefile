@@ -13,5 +13,5 @@ test-html:: test
 
 analyse::
 	@echo "Performing Static Analysis with golangci-lint"
-	docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v1.55.2 golangci-lint run --out-format html --tests=false --timeout 5m0s > ${STATIC_ANALYSIS_FILE}
+	docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v1.57 golangci-lint run --out-format html --tests=false --timeout 5m0s > ${STATIC_ANALYSIS_FILE}
 	firefox ${STATIC_ANALYSIS_FILE}
