@@ -9,8 +9,12 @@ import (
 )
 
 // Mock a struct internal to an application
+type SystemDeepNested struct {
+	Direction string `jsonpath:"direction2"`
+}
 type SystemNested struct {
-	Direction string `jsonpath:"direction"`
+	Direction   string           `jsonpath:"direction"`
+	DeeepNested SystemDeepNested `jsonpath:"deepnested"`
 }
 type SystemStruct struct {
 	Name        string       `jsonpath:"metadata.namefield"`
@@ -25,8 +29,12 @@ type APIObject struct {
 	Metadata APIMetadata `json:"metadata"`
 	Config   APIConfig   `json:"config"`
 }
+type APIDeepNested struct {
+	Direction2 string `json:"direction2"`
+}
 type APIListedObjConfig struct {
-	Direction string `json:"direction"`
+	DeepNested APIDeepNested `json:"deepnested"`
+	Direction  string        `json:"direction"`
 }
 type APIListedObj struct {
 	List   []string           `json:"list"`
@@ -76,6 +84,9 @@ func TestStructUnmarshal(t *testing.T) {
 						List: list,
 						Config: APIListedObjConfig{
 							Direction: direction,
+							DeepNested: APIDeepNested{
+								Direction2: direction,
+							},
 						},
 					},
 				},
@@ -97,6 +108,8 @@ func TestStructUnmarshal(t *testing.T) {
 		} else if dst.Nested.Direction != direction {
 			failed = true
 		} else if !cmp.Equal(dst.ListedStuff, list) {
+			failed = true
+		} else if dst.Nested.DeeepNested.Direction != direction {
 			failed = true
 		}
 

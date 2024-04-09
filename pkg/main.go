@@ -82,10 +82,25 @@ func UnmarshalJSONPath(src []byte, dst interface{}) error {
 	}
 
 	srcData := map[string]interface{}{}
-	dstData := map[string]interface{}{}
-	json.Unmarshal(src, &srcData)
+	err := json.Unmarshal(src, &srcData)
+	if err != nil {
+		return err
+	}
+	dstData := populateStructFromMap(srcData, dst)
+	jsonData, _ := json.Marshal(dstData)
+	return json.Unmarshal(jsonData, dst)
+}
 
-	v := reflect.ValueOf(dst).Elem()
+func populateStructFromMap(
+	src map[string]interface{},
+	dst interface{},
+	parents ...string,
+) map[string]interface{} {
+	dstData := map[string]interface{}{}
+	v := reflect.ValueOf(dst)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	for i := range v.NumField() {
 		tag := v.Type().Field(i).Tag.Get("jsonpath")
 		if tag == "" {
@@ -93,25 +108,27 @@ func UnmarshalJSONPath(src []byte, dst interface{}) error {
 		}
 		tagParts := strings.Split(tag, ",")
 		srcPath := strings.Split(tagParts[0], ".")
-		value := extractValueFromPath(srcPath, srcData)
+		if parents != nil {
+			srcPath = append(parents, srcPath...)
+		}
+		field := v.Field(i)
+		var value any
+		if field.Kind() == reflect.Struct { // handle nested structs
+			value = populateStructFromMap(
+				src,
+				field.Interface(),
+				srcPath...,
+			)
+		} else {
+			value = extractValueFromPath(srcPath, src)
+		}
 		if value == nil {
 			continue
 		}
 		fieldName := v.Type().Field(i).Name
-		dstPath := []string{strings.ToLower(fieldName)}
-		setValueIntoPath(dstPath, value, dstData)
+		dstData[fieldName] = value
 	}
-
-	jsonData, _ := json.Marshal(dstData)
-	return json.Unmarshal(jsonData, dst)
-}
-
-func setValueIntoPath(path []string, value any, dst map[string]interface{}) {
-	if len(path) == 1 {
-		dst[path[0]] = value
-		return
-	}
-	setValueIntoPath(path[1:], value, dst[path[0]].(map[string]interface{}))
+	return dstData
 }
 
 func extractValueFromPath(path []string, src map[string]interface{}) any {
@@ -142,11 +159,14 @@ func extractValueFromPath(path []string, src map[string]interface{}) any {
 // resulting JSON object.
 func MarshalJSONPath(src interface{}) ([]byte, error) {
 	data := map[string]interface{}{}
-	processJSONFields(src, data)
+	populateMapFromStruct(src, data)
 	return json.Marshal(data)
 }
 
-func processJSONFields(src interface{}, dst map[string]interface{}, parentPath ...string) {
+func populateMapFromStruct(
+	src interface{},
+	dst map[string]interface{},
+) { //, parentPath ...string) {
 	v := reflect.ValueOf(src)
 	for i := range v.NumField() {
 		tag := v.Type().Field(i).Tag.Get("jsonpath")
@@ -155,12 +175,15 @@ func processJSONFields(src interface{}, dst map[string]interface{}, parentPath .
 		}
 		tagParts := strings.Split(tag, ",")
 		pathParts := strings.Split(tagParts[0], ".")
-		if parentPath != nil {
-			pathParts = append(parentPath, pathParts...)
-		}
+		// if parentPath != nil {
+		// 	pathParts = append(parentPath, pathParts...)
+		// }
 		field := v.Field(i)
 		if field.IsZero() {
 			continue
+		}
+		if field.Kind() == reflect.Struct {
+
 		}
 		placeFieldValueIntoPath(pathParts, field, dst)
 	}
@@ -221,7 +244,7 @@ func getFieldValue(field reflect.Value) any {
 		return result
 	case reflect.Struct:
 		result := map[string]any{}
-		processJSONFields(field.Interface(), result)
+		populateMapFromStruct(field.Interface(), result)
 		return result
 	default:
 		msg := fmt.Sprintf("unsupported type: %s", field.Kind().String())
