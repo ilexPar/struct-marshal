@@ -182,9 +182,6 @@ func populateMapFromStruct(
 		if field.IsZero() {
 			continue
 		}
-		if field.Kind() == reflect.Struct {
-
-		}
 		placeFieldValueIntoPath(pathParts, field, dst)
 	}
 }
