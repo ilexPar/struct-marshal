@@ -166,7 +166,7 @@ func MarshalJSONPath(src interface{}) ([]byte, error) {
 func populateMapFromStruct(
 	src interface{},
 	dst map[string]interface{},
-) { //, parentPath ...string) {
+) {
 	v := reflect.ValueOf(src)
 	for i := range v.NumField() {
 		tag := v.Type().Field(i).Tag.Get("jsonpath")
@@ -175,9 +175,6 @@ func populateMapFromStruct(
 		}
 		tagParts := strings.Split(tag, ",")
 		pathParts := strings.Split(tagParts[0], ".")
-		// if parentPath != nil {
-		// 	pathParts = append(parentPath, pathParts...)
-		// }
 		field := v.Field(i)
 		if field.IsZero() {
 			continue
