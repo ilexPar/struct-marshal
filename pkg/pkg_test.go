@@ -86,8 +86,21 @@ func TestStructUnmarshal(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		if dst.Name != name || dst.Count != count || dst.Flag != flag ||
-			dst.Nested.Direction != "up" || !cmp.Equal(dst.ListedStuff, list) {
+		failed := false
+
+		if dst.Name != name {
+			failed = true
+		} else if dst.Count != count {
+			failed = true
+		} else if dst.Flag != flag {
+			failed = true
+		} else if dst.Nested.Direction != direction {
+			failed = true
+		} else if !cmp.Equal(dst.ListedStuff, list) {
+			failed = true
+		}
+
+		if failed {
 			t.Errorf("Expected %v, got %v", src, dst)
 		}
 	})
@@ -116,11 +129,22 @@ func TestStructMarshal(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		if dst.Metadata.NameField != name || dst.Metadata.Flag != flag ||
-			dst.Config.SomeCount != count || dst.Config.SomeList[0].Config.Direction != direction ||
-			!cmp.Equal(dst.Config.SomeList[0].List, list) {
-			t.Errorf("Expected %v, got %v", src, dst)
+		failed := false
+
+		if dst.Metadata.NameField != name {
+			failed = true
+		} else if dst.Metadata.Flag != flag {
+			failed = true
+		} else if dst.Config.SomeCount != count {
+			failed = true
+		} else if dst.Config.SomeList[0].Config.Direction != direction {
+			failed = true
+		} else if !cmp.Equal(dst.Config.SomeList[0].List, list) {
+			failed = true
 		}
 
+		if failed {
+			t.Errorf("Expected %v, got %v", src, dst)
+		}
 	})
 }
