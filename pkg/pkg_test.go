@@ -5,23 +5,23 @@ import (
 
 	"github.com/ilexPar/struct-marshal/pkg"
 
-	cmp "github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 )
 
 // Mock a struct internal to an application
 type SystemDeepNested struct {
-	Direction string `jsonpath:"direction2"`
+	Direction string `sm:"direction2"`
 }
 type SystemNested struct {
-	Direction   string           `jsonpath:"direction"`
-	DeeepNested SystemDeepNested `jsonpath:"deepnested"`
+	Direction   string           `sm:"direction"`
+	DeeepNested SystemDeepNested `sm:"deepnested"`
 }
 type SystemStruct struct {
-	Name        string       `jsonpath:"metadata.namefield"`
-	Count       int          `jsonpath:"config.somecount"`
-	Flag        bool         `jsonpath:"metadata.flag"`
-	Nested      SystemNested `jsonpath:"config.somelist[0].config"`
-	ListedStuff []string     `jsonpath:"config.somelist[0].list"`
+	Name        string       `sm:"metadata.namefield"`
+	Count       int          `sm:"config.somecount"`
+	Flag        bool         `sm:"metadata.flag"`
+	Nested      SystemNested `sm:"config.somelist[0].config"`
+	ListedStuff []string     `sm:"config.somelist[0].list"`
 }
 
 // Mock a struct that differs in structure from our internal struct, probably belonging to another API
@@ -53,16 +53,12 @@ func TestStructUnmarshal(t *testing.T) {
 	t.Run("should error when destination interface is nil", func(t *testing.T) {
 		var emptyDst *SystemStruct
 		err := pkg.StructUnmarshal(APIObject{}, emptyDst)
-		if err == nil {
-			t.Error("Expected error when destination interface is nil")
-		}
+		assert.NotNil(t, err, "Expected error when destination interface is nil")
 	})
 	t.Run("should error when destination interface is not a pointer", func(t *testing.T) {
 		var dst1 SystemStruct
 		err := pkg.UnmarshalJSONPath([]byte{}, dst1)
-		if err == nil {
-			t.Error("Expected error when destination interface is not a pointer")
-		}
+		assert.NotNil(t, err, "Expected error when destination interface is not a pointer")
 	})
 	t.Run("correct unmarshal", func(t *testing.T) {
 		name := "test"
@@ -93,29 +89,15 @@ func TestStructUnmarshal(t *testing.T) {
 			},
 		}
 
-		if err := pkg.StructUnmarshal(src, &dst); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+		err := pkg.StructUnmarshal(src, &dst)
 
-		failed := false
-
-		if dst.Name != name {
-			failed = true
-		} else if dst.Count != count {
-			failed = true
-		} else if dst.Flag != flag {
-			failed = true
-		} else if dst.Nested.Direction != direction {
-			failed = true
-		} else if !cmp.Equal(dst.ListedStuff, list) {
-			failed = true
-		} else if dst.Nested.DeeepNested.Direction != direction {
-			failed = true
-		}
-
-		if failed {
-			t.Errorf("Expected %v, got %v", src, dst)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, dst.Name, name)
+		assert.Equal(t, dst.Count, count)
+		assert.Equal(t, dst.Flag, flag)
+		assert.Equal(t, dst.Nested.Direction, direction)
+		assert.Equal(t, dst.ListedStuff, list)
+		assert.Equal(t, dst.Nested.DeeepNested.Direction, direction)
 	})
 }
 
@@ -137,27 +119,13 @@ func TestStructMarshal(t *testing.T) {
 		}
 
 		dst := &APIObject{}
+		err := pkg.StructMarshal(src, dst)
 
-		if err := pkg.StructMarshal(src, dst); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		failed := false
-
-		if dst.Metadata.NameField != name {
-			failed = true
-		} else if dst.Metadata.Flag != flag {
-			failed = true
-		} else if dst.Config.SomeCount != count {
-			failed = true
-		} else if dst.Config.SomeList[0].Config.Direction != direction {
-			failed = true
-		} else if !cmp.Equal(dst.Config.SomeList[0].List, list) {
-			failed = true
-		}
-
-		if failed {
-			t.Errorf("Expected %v, got %v", src, dst)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, dst.Metadata.NameField, name)
+		assert.Equal(t, dst.Metadata.Flag, flag)
+		assert.Equal(t, dst.Config.SomeCount, count)
+		assert.Equal(t, dst.Config.SomeList[0].Config.Direction, direction)
+		assert.Equal(t, dst.Config.SomeList[0].List, list)
 	})
 }

@@ -13,9 +13,9 @@ import (
 )
 
 type InternalObject struct {
-    Name   string `jsonpath:"metadata.name"`
-    Image  string `jsonpath:"spec.template.spec.containers[0].image"`
-    Memory string `jsonpath:"spec.template.spec.containers[0].resources.limits.memory"`
+    Name   string `sm:"metadata.name"`
+    Image  string `sm:"spec.template.spec.containers[0].image"`
+    Memory string `sm:"spec.template.spec.containers[0].resources.limits.memory"`
 }
 
 func main() {
@@ -34,9 +34,9 @@ import (
 )
 
 type InternalObject struct {
-    Name   string `jsonpath:"metadata.name"`
-    Image  string `jsonpath:"spec.template.spec.containers[0].image"`
-    Memory string `jsonpath:"spec.template.spec.containers[0].resources.limits.memory"`
+    Name   string `sm:"metadata.name"`
+    Image  string `sm:"spec.template.spec.containers[0].image"`
+    Memory string `sm:"spec.template.spec.containers[0].resources.limits.memory"`
 }
 
 func main() {

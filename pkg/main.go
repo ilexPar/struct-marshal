@@ -56,6 +56,8 @@ import (
 	"strings"
 )
 
+const FIELD_TAG_KEY = "sm"
+
 // StructMarshal marshals the given the jsonpath compatible source to a JSON byte slice, and then unmarshals it into the given destination interface{}.
 // This function is intended to convert between system internal definitions and the destined API object.
 func StructMarshal(src interface{}, dst interface{}) error {
@@ -102,7 +104,7 @@ func populateStructFromMap(
 		v = v.Elem()
 	}
 	for i := range v.NumField() {
-		tag := v.Type().Field(i).Tag.Get("jsonpath")
+		tag := v.Type().Field(i).Tag.Get(FIELD_TAG_KEY)
 		if tag == "" {
 			continue
 		}
@@ -169,7 +171,7 @@ func populateMapFromStruct(
 ) {
 	v := reflect.ValueOf(src)
 	for i := range v.NumField() {
-		tag := v.Type().Field(i).Tag.Get("jsonpath")
+		tag := v.Type().Field(i).Tag.Get(FIELD_TAG_KEY)
 		if tag == "" {
 			continue
 		}
