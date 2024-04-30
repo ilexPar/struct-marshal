@@ -6,7 +6,7 @@ STATIC_ANALYSIS_FILE := analysis-report.html
 ###### Development ######
 
 test::
-	@gotestsum -f dots-v2 -- -coverprofile cover.out -coverpkg=./pkg/... ./pkg/... 
+	@gotestsum -f dots-v2 -- -coverprofile cover.out -coverpkg=./pkg/... ./tests/... 
 
 test-html:: test
 	@go tool cover -html=cover.out
