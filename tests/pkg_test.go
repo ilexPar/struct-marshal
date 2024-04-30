@@ -209,6 +209,21 @@ func TestStructUnmarshal(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, src.Child.Direction, dst.DismissNested.Direction)
 	})
+	t.Run("do nothing when fields don't have the right tag", func(t *testing.T) {
+		dst := struct {
+			Name string `wrong:"metadata.namefield"`
+		}{}
+		src := SecondaryAPIObject{
+			Metadata: APIMetadata{
+				NameField: "test",
+			},
+		}
+
+		err := pkg.Unmarshal(src, &dst)
+
+		assert.Nil(t, err)
+		assert.Empty(t, dst.Name)
+	})
 }
 
 func TestStructMarshal(t *testing.T) {
@@ -310,5 +325,18 @@ func TestStructMarshal(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, src.DismissNested.Direction, dst.Child.Direction)
+	})
+	t.Run("do nothing when fields don't have the right tag", func(t *testing.T) {
+		src := struct {
+			Name string `wrong:"metadata.namefield"`
+		}{
+			Name: "test",
+		}
+		dst := &SecondaryAPIObject{}
+
+		err := pkg.Marshal(src, &dst)
+
+		assert.Nil(t, err)
+		assert.Empty(t, dst.Metadata.NameField)
 	})
 }

@@ -32,8 +32,12 @@ func NewField(idx int, structValue reflect.Value, rootStruct string) (*Field, er
 	field.Kind = field.Value.Kind()
 
 	tag, skip := parseTag(field.stfield)
-	field.Skip = skip
 	field.tag = tag
+
+	if skip {
+		field.Skip = skip
+		return field, err
+	}
 
 	if err := field.resolvePath(); err != nil {
 		return nil, err
