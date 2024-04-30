@@ -1,49 +1,75 @@
-// struct-marshal is an experimental utility to translate between two go structs using json encoding in the background.
+// Experimental tility to "encode" a go struct into another, using json encoding as intermediary.
 //
-// Intended to translate between API objects and the internal system definitions using "jsonpath" tag to map fields.
+// Intended to translate between API objects and internal system abstractions, providing capabilities to configure how each field should be mapped.
 //
-// A real world example would be to translate between Kubernetes API objects and a custom struct internal to your application.
+// # Usage
 //
-// Example translating an internal object to a deployment:
+// The most basic usage is to annotate your struct fields with the `sm` tag, specifying the "jsonpath" to the field in the destination object.
 //
-//	import (
-//		sm "github.com/ilexPar/struct-marshal/pkg"
-//		apps "k8s.io/api/apps/v1"
-//	)
-//
-//	type InternalObject struct {
-//		Name   string `jsonpath:"metadata.name"`
-//		Image  string `jsonpath:"spec.template.spec.containers[0].image"`
-//		Memory string `jsonpath:"spec.template.spec.containers[0].resources.limits.memory"`
+//	type MyStruct struct {
+//	    Name string `sm:metadata.name`
 //	}
 //
-//	func main() {
-//		src := &apps.Deployment{}
-//		dst := &InternalObject{}
-//		sm.StructUnmarshal(src, dst) // now dst should have been populated with the expected values from src
+// And now you just need to call `Marshal` or `Unmarshal` to translate between your structs.
+//
+//	// load your struct with values from an external object
+//	dst := &MyStruct{}
+//	src := getSomeThirdPartyData()
+//	sm.Unarshal(src, dst)
+//
+//	// load an third party struct from you internal abstraction
+//	dst := &module.SomeStruct{}
+//	src := &MyStruct{
+//	    Name: "pepito"
+//	}
+//	sm.Marshal(src, dst)
+//
+// # Advanced
+//
+// # Type Matching
+//
+// By default types wont be checked, but you can specify type matching option like `types<SomeType>`. Multiple types can be annotated for each field using `|` as separator.
+// When types don't match field will be skipped
+//
+// Example:
+//
+//	type MyStruct struct {
+//	    Name string `sm:metadata.name,types<SomeStruct|OtherStruct>`
+//	    Flag bool `sm:metadata.name,types<SomeStruct>`
 //	}
 //
-// Example translating a deployment to an internal object:
+// # Per Type Path
 //
-//		import (
-//			sm "github.com/ilexPar/struct-marshal/pkg"
-//			apps "k8s.io/api/apps/v1"
-//		)
+// You can specify a different path for each type by appending the path to the type using `:` as separator in the `types<>` option.
 //
-//		type InternalObject struct {
-//			Name   string `jsonpath:"metadata.name"`
-//			Image  string `jsonpath:"spec.template.spec.containers[0].image"`
-//			Memory string `jsonpath:"spec.template.spec.containers[0].resources.limits.memory"`
-//		}
+// Keep in mind:
 //
-//	func main() {
-//		dst := &apps.Deployment{}
-//		src := &InternalObject{
-//			Name: "my-dpl",
-//			Image: "nginx",
-//			Memory: "128Mi",
-//		}
-//		sm.StructMmarshal(src, dst) // now dst should have been populated with the expected values from src
+//   - Is mandatory the main path for the field is set to `+` character when using this feature
+//   - the `types<>` option will perform the match only based on the type you expect to "encode/decode",
+//     so there's no need to know the types of fields disregarding the depth
+//
+// Example:
+//
+//	type MyStruct struct {
+//	    Name string `sm:+,types<SomeStruct:meta.name|OtherStruct:info.name>`
+//	}
+//
+// # Nesting
+//
+// By default fields that are structs will inherit the parent path, but you can dismiss this by using the `->` operator as field name in order for the path to be fully processed
+//
+// Example:
+//
+//	type PreservedParent struct {
+//	    Name `sm:name`
+//	}
+//	type DismissParent struct {
+//	    SomeProperty string `sm:some.path.to.property`
+//	}
+//
+//	type MyStruct struct {
+//	    Child1 PreservedParent `sm:some.path.to.use`
+//	    Child2 DismissParent `->`
 //	}
 package pkg
 
@@ -51,33 +77,55 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
-const FIELD_TAG_KEY = "sm"
+const (
+	FIELD_TAG_KEY    = "sm" // field tag to parse
+	TYPES_SPLIT      = "|"  // type separator when encoding to multiple types from a single source, eg sm:"example,types<Struct1|Struct2>"
+	TYPES_PATH_SPLIT = ":"  // type path separator when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
+	DISMISS_NESTED   = "->" // path to be used when dismissing path nesting
+	MULTI_TYPE_NAME  = "+"  // path name to be used when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
 
-// StructMarshal marshals the given the jsonpath compatible source to a JSON byte slice, and then unmarshals it into the given destination interface{}.
+	ERROR_PER_TYPE_PATH_IS_NOT_VALID = "main path should be '+' when using per-type path matching"
+
+	TYPE_OPTS_REGEX = `^types<([^>]+)>$`
+)
+
+// Marshal marshals the given the jsonpath compatible source to a JSON byte slice, and then unmarshals it into the given destination interface{}.
 // This function is intended to convert between system internal definitions and the destined API object.
-func StructMarshal(src interface{}, dst interface{}) error {
-	b, _ := MarshalJSONPath(src)
-	err := json.Unmarshal(b, &dst)
+func Marshal(src interface{}, dst interface{}) error {
+	dstType := getTypeName(dst)
+	b, err := MarshalJSONPath(src, dstType)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(b, &dst)
 	return err
 }
 
-// StructUnmarshal marshals the given source and then unmarshals into the jsonpath compatible destination.
+// Unmarshal marshals the given source and then unmarshals into the jsonpath compatible destination.
 // This function is intended to convert between the provided API object and the system internal definitions.
-func StructUnmarshal(src interface{}, dst interface{}) error {
+func Unmarshal(src interface{}, dst interface{}) error {
 	b, _ := json.Marshal(src)
-	err := UnmarshalJSONPath(b, dst)
+	srcType := getTypeName(src)
+	err := UnmarshalJSONPath(b, dst, srcType)
 	return err
+}
+
+func getTypeName(t interface{}) string {
+	val := reflect.ValueOf(t)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	return val.Type().Name()
 }
 
 // UnmarshalJSONPath unmarshals the given JSON byte slice into the provided destination interface.
 // The destination interface must be a non-nil pointer. The function uses the "jsonpath" struct tags
 // on the destination interface fields to map the JSON data to the appropriate fields.
-func UnmarshalJSONPath(src []byte, dst interface{}) error {
+func UnmarshalJSONPath(src []byte, dst interface{}, srcTypeName string) error {
 	rd := reflect.ValueOf(dst)
 	if rd.Kind() != reflect.Pointer || rd.IsNil() {
 		return fmt.Errorf("dst must be a non-nil pointer")
@@ -88,7 +136,10 @@ func UnmarshalJSONPath(src []byte, dst interface{}) error {
 	if err != nil {
 		return err
 	}
-	dstData := populateStructFromMap(srcData, dst)
+	dstData, err := populateStructFromMap(srcData, dst, srcTypeName)
+	if err != nil {
+		return err
+	}
 	jsonData, _ := json.Marshal(dstData)
 	return json.Unmarshal(jsonData, dst)
 }
@@ -96,180 +147,81 @@ func UnmarshalJSONPath(src []byte, dst interface{}) error {
 func populateStructFromMap(
 	src map[string]interface{},
 	dst interface{},
+	srcTypeName string,
 	parents ...string,
-) map[string]interface{} {
+) (map[string]interface{}, error) {
 	dstData := map[string]interface{}{}
 	v := reflect.ValueOf(dst)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 	for i := range v.NumField() {
-		tag := v.Type().Field(i).Tag.Get(FIELD_TAG_KEY)
-		if tag == "" {
+		field, err := NewField(i, v, srcTypeName)
+		if err != nil {
+			return dstData, err
+		}
+		if field.Skip {
 			continue
 		}
-		tagParts := strings.Split(tag, ",")
-		srcPath := strings.Split(tagParts[0], ".")
-		if parents != nil {
-			srcPath = append(parents, srcPath...)
-		}
-		field := v.Field(i)
+
+		field.ChRoot(parents)
 		var value any
-		if field.Kind() == reflect.Struct { // handle nested structs
-			value = populateStructFromMap(
+		if field.IsStruct() {
+			// handle nested structs
+			value, err = populateStructFromMap(
 				src,
-				field.Interface(),
-				srcPath...,
+				field.Value.Interface(),
+				srcTypeName,
+				field.GetPathAsParent()...,
 			)
+			if err != nil {
+				return dstData, err
+			}
 		} else {
-			value = extractValueFromPath(srcPath, src)
+			value = field.GetValueFromMap(src)
 		}
 		if value == nil {
 			continue
 		}
-		fieldName := v.Type().Field(i).Name
-		dstData[fieldName] = value
+		dstData[field.stfield.Name] = value
 	}
-	return dstData
-}
-
-func extractValueFromPath(path []string, src map[string]interface{}) any {
-	handler := func() any {
-		return extractValueFromPath(path[1:], src[path[0]].(map[string]interface{}))
-	}
-	arrayHandler := func(idx int, field string, data any) any {
-		if data == nil {
-			return nil // ignore missing data
-		}
-		return extractValueFromPath(
-			path[1:],
-			data.([]interface{})[idx].(map[string]interface{}),
-		)
-	}
-
-	if len(path) == 1 {
-		return src[path[0]]
-	}
-	if len(path) >= 2 {
-		return handleNestedPaths(path, src, handler, arrayHandler)
-	}
-	panic("well well, how did we get here?")
+	return dstData, nil
 }
 
 // MarshalJSONPath converts the given source interface{} to a JSON-encoded byte slice,
 // using the JSON field tags defined on the source struct to map the fields to the
 // resulting JSON object.
-func MarshalJSONPath(src interface{}) ([]byte, error) {
+func MarshalJSONPath(src interface{}, dstTypeName string) ([]byte, error) {
 	data := map[string]interface{}{}
-	populateMapFromStruct(src, data)
+	err := populateMapFromStruct(src, data, dstTypeName)
+	if err != nil {
+		return nil, err
+	}
 	return json.Marshal(data)
 }
 
 func populateMapFromStruct(
 	src interface{},
 	dst map[string]interface{},
-) {
+	dstTypeName string,
+) error {
 	v := reflect.ValueOf(src)
 	for i := range v.NumField() {
-		tag := v.Type().Field(i).Tag.Get(FIELD_TAG_KEY)
-		if tag == "" {
+		field, err := NewField(i, v, dstTypeName)
+		if err != nil {
+			return err
+		}
+		field.SkipIfEmpty()
+		if field.Skip {
 			continue
 		}
-		tagParts := strings.Split(tag, ",")
-		pathParts := strings.Split(tagParts[0], ".")
-		field := v.Field(i)
-		if field.IsZero() {
-			continue
+		if field.IsStruct() && field.DissmisNesting(field.Path) {
+			// if dismiss nesting then treat the child struct fields as if they
+			// were defined in the parent struct
+			populateMapFromStruct(field.Value.Interface(), dst, dstTypeName)
+		} else {
+			field.SetValueIntoMap(dst)
 		}
-		placeFieldValueIntoPath(pathParts, field, dst)
 	}
-}
-
-func placeFieldValueIntoPath(path []string, field reflect.Value, dst map[string]interface{}) {
-	handler := func() any {
-		if dst[path[0]] == nil {
-			dst[path[0]] = map[string]interface{}{}
-		}
-		placeFieldValueIntoPath(path[1:], field, dst[path[0]].(map[string]interface{}))
-		return nil
-	}
-	arrayHandler := func(idx int, fieldName string, data any) any {
-		if data == nil {
-			dst[fieldName] = make([]map[string]interface{}, 1)
-			dst[fieldName].([]map[string]interface{})[idx] = map[string]interface{}{}
-		}
-		placeFieldValueIntoPath(
-			path[1:],
-			field,
-			dst[fieldName].([]map[string]interface{})[idx],
-		)
-		return nil
-	}
-
-	if len(path) == 1 {
-		dst[path[0]] = getFieldValue(field)
-		return
-	}
-	if len(path) >= 2 {
-		handleNestedPaths(path, dst, handler, arrayHandler)
-	}
-}
-
-func getFieldValue(field reflect.Value) any {
-	switch field.Kind() {
-	case reflect.String:
-		return field.String()
-	case reflect.Int:
-		return field.Int()
-	case reflect.Bool:
-		return field.Bool()
-	case reflect.Slice:
-		list := []any{}
-		for i := range field.Len() {
-			list = append(list, getFieldValue(field.Index(i)))
-		}
-		return list
-	case reflect.Map:
-		iter := field.MapRange()
-		result := map[string]any{}
-		for iter.Next() {
-			key := iter.Key().String()
-			value := getFieldValue(iter.Value())
-			result[key] = value
-		}
-		return result
-	case reflect.Struct:
-		result := map[string]any{}
-		populateMapFromStruct(field.Interface(), result)
-		return result
-	default:
-		msg := fmt.Sprintf("unsupported type: %s", field.Kind().String())
-		panic(msg)
-	}
-}
-
-// Callback to handler array paths
-// will provide array index, the corresponding field name holding the array, and the data that is being
-// held in the array index
-type arrayCb func(idx int, field string, data any) any
-
-// Callback to handler non-array paths
-type handlerCb func() any
-
-func handleNestedPaths(
-	path []string,
-	src map[string]interface{},
-	handler handlerCb,
-	arrayHandler arrayCb,
-) any {
-	const matchArrayExp = "^(.*)\\[([0-9]*)\\]$"
-	isPathArray := regexp.MustCompile(matchArrayExp).FindStringSubmatch(path[0])
-	if isPathArray != nil {
-		idx, _ := strconv.Atoi(isPathArray[2])
-		fieldName := isPathArray[1]
-		data := src[fieldName]
-		return arrayHandler(idx, fieldName, data)
-	} else {
-		return handler()
-	}
+	return nil
 }
