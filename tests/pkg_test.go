@@ -17,11 +17,12 @@ type SystemNested struct {
 	DeeepNested SystemDeepNested `sm:"deepnested"`
 }
 type SystemStruct struct {
-	Name        string       `sm:"metadata.namefield"`
-	Count       int          `sm:"config.somecount"`
-	Flag        bool         `sm:"metadata.flag"`
-	Nested      SystemNested `sm:"config.somelist[0].config"`
-	ListedStuff []string     `sm:"config.somelist[0].list"`
+	Name          string        `sm:"metadata.namefield"`
+	Count         int           `sm:"config.somecount"`
+	Flag          bool          `sm:"metadata.flag"`
+	Nested        SystemNested  `sm:"config.somelist[0].config"`
+	NestedPointer *SystemNested `sm:"config.somelist2[0].config"`
+	ListedStuff   []string      `sm:"config.somelist[0].list"`
 }
 
 // Mock a struct taking advantage of multiple destination types
@@ -56,8 +57,9 @@ type APIMetadata struct {
 	Flag      bool   `json:"flag"`
 }
 type APIConfig struct {
-	SomeCount int            `json:"somecount"`
-	SomeList  []APIListedObj `json:"somelist"`
+	SomeCount int             `json:"somecount"`
+	SomeList  []APIListedObj  `json:"somelist"`
+	SomeList2 []*APIListedObj `json:"somelist2"`
 }
 
 // Mock another struct that differs in structure from both our internal struct and the APIObject
@@ -109,6 +111,13 @@ func TestStructUnmarshal(t *testing.T) {
 						},
 					},
 				},
+				SomeList2: []*APIListedObj{
+					{
+						Config: APIListedObjConfig{
+							Direction: direction,
+						},
+					},
+				},
 			},
 		}
 
@@ -121,6 +130,7 @@ func TestStructUnmarshal(t *testing.T) {
 		assert.Equal(t, dst.Nested.Direction, direction)
 		assert.Equal(t, dst.ListedStuff, list)
 		assert.Equal(t, dst.Nested.DeeepNested.Direction, direction)
+		assert.Equal(t, dst.NestedPointer.Direction, direction)
 	})
 	t.Run("should ignore fields that doesn't match type matching option", func(t *testing.T) {
 		dst := struct {
@@ -240,6 +250,9 @@ func TestStructMarshal(t *testing.T) {
 			Nested: SystemNested{
 				Direction: direction,
 			},
+			NestedPointer: &SystemNested{
+				Direction: direction,
+			},
 			ListedStuff: list,
 		}
 
@@ -252,6 +265,7 @@ func TestStructMarshal(t *testing.T) {
 		assert.Equal(t, dst.Config.SomeCount, count)
 		assert.Equal(t, dst.Config.SomeList[0].Config.Direction, direction)
 		assert.Equal(t, dst.Config.SomeList[0].List, list)
+		assert.Equal(t, dst.Config.SomeList2[0].Config.Direction, direction)
 	})
 	t.Run("should ignore fields that doesn't match type matching option", func(t *testing.T) {
 		src := struct {

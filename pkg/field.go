@@ -226,6 +226,8 @@ func (f *Field) getFieldValue(field reflect.Value) any {
 		result := map[string]any{}
 		populateMapFromStruct(field.Interface(), result, f.Target)
 		return result
+	case reflect.Ptr:
+		return f.getFieldValue(field.Elem())
 	default:
 		msg := fmt.Sprintf("unsupported type: %s", field.Kind().String())
 		panic(msg)
