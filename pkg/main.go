@@ -169,10 +169,7 @@ func populateStructFromMap(
 		if field.IsStruct() {
 			// handle nested structs
 			value, err = populateStructFromMap(
-				src,
-				field.Value.Interface(),
-				srcTypeName,
-				field.GetPathAsParent()...,
+				src, field.Value.Interface(), srcTypeName, field.GetPathAsParent()...,
 			)
 			if err != nil {
 				return dstData, err
@@ -184,23 +181,30 @@ func populateStructFromMap(
 			continue
 		}
 		if field.IsStructSlice() {
-			structList := []any{}
-			reflectedStruct := field.Value.Type().Elem()
-			for i := range value.([]interface{}) {
-				ifaceVal := value.([]interface{})[i].(map[string]interface{})
-				v, err := populateStructFromMap(
-					ifaceVal, reflect.New(reflectedStruct).Interface(), srcTypeName,
-				)
-				if err != nil {
-					return dstData, err
-				}
-				structList = append(structList, v)
+			value, err = handleStructSlice(value, field, srcTypeName)
+			if err != nil {
+				return dstData, err
 			}
-			value = structList
 		}
 		dstData[field.stfield.Name] = value
 	}
 	return dstData, nil
+}
+
+func handleStructSlice(value any, field *Field, srcTypeName string) ([]any, error) {
+	structList := []any{}
+	reflectedStruct := field.Value.Type().Elem()
+	for i := range value.([]interface{}) {
+		ifaceVal := value.([]interface{})[i].(map[string]interface{})
+		v, err := populateStructFromMap(
+			ifaceVal, reflect.New(reflectedStruct).Interface(), srcTypeName,
+		)
+		if err != nil {
+			return structList, err
+		}
+		structList = append(structList, v)
+	}
+	return structList, nil
 }
 
 // MarshalJSONPath converts the given source interface{} to a JSON-encoded byte slice,
