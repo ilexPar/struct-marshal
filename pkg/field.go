@@ -68,6 +68,10 @@ func (f *Field) IsStruct() bool {
 	return f.Kind == reflect.Struct
 }
 
+func (f *Field) IsStructSlice() bool {
+	return f.Kind == reflect.Slice && f.Value.Type().Elem().Kind() == reflect.Struct
+}
+
 func (f Field) DissmisNesting(path []string) bool {
 	return path[0] == DISMISS_NESTED
 }

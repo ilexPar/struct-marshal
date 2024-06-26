@@ -16,13 +16,17 @@ type SystemNested struct {
 	Direction   string           `sm:"direction"`
 	DeeepNested SystemDeepNested `sm:"deepnested"`
 }
+type SystemNestedFromSlice struct {
+	Direction string `sm:"config.direction"`
+}
 type SystemStruct struct {
-	Name          string        `sm:"metadata.namefield"`
-	Count         int           `sm:"config.somecount"`
-	Flag          bool          `sm:"metadata.flag"`
-	Nested        SystemNested  `sm:"config.somelist[0].config"`
-	NestedPointer *SystemNested `sm:"config.somelist2[0].config"`
-	ListedStuff   []string      `sm:"config.somelist[0].list"`
+	Name          string                  `sm:"metadata.namefield"`
+	Count         int                     `sm:"config.somecount"`
+	Flag          bool                    `sm:"metadata.flag"`
+	Nested        SystemNested            `sm:"config.somelist[0].config"`
+	NestedPointer *SystemNested           `sm:"config.somelist2[0].config"`
+	ListedStuff   []string                `sm:"config.somelist[0].list"`
+	StructSlice   []SystemNestedFromSlice `sm:"config.somelist"`
 }
 
 // Mock a struct taking advantage of multiple destination types
@@ -124,13 +128,14 @@ func TestStructUnmarshal(t *testing.T) {
 		err := pkg.Unmarshal(src, &dst)
 
 		assert.Nil(t, err)
-		assert.Equal(t, dst.Name, name)
-		assert.Equal(t, dst.Count, count)
-		assert.Equal(t, dst.Flag, flag)
-		assert.Equal(t, dst.Nested.Direction, direction)
-		assert.Equal(t, dst.ListedStuff, list)
-		assert.Equal(t, dst.Nested.DeeepNested.Direction, direction)
-		assert.Equal(t, dst.NestedPointer.Direction, direction)
+		assert.Equal(t, name, dst.Name)
+		assert.Equal(t, count, dst.Count)
+		assert.Equal(t, flag, dst.Flag)
+		assert.Equal(t, direction, dst.Nested.Direction)
+		assert.Equal(t, list, dst.ListedStuff)
+		assert.Equal(t, direction, dst.Nested.DeeepNested.Direction)
+		assert.Equal(t, direction, dst.NestedPointer.Direction)
+		assert.Equal(t, direction, dst.StructSlice[0].Direction)
 	})
 	t.Run("should ignore fields that doesn't match type matching option", func(t *testing.T) {
 		dst := struct {

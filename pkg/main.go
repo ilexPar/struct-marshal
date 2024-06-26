@@ -179,6 +179,21 @@ func populateStructFromMap(
 			}
 		} else {
 			value = field.GetValueFromMap(src)
+			if field.IsStructSlice() {
+				structList := []any{}
+				reflectedStruct := field.Value.Type().Elem()
+				for i := range value.([]interface{}) {
+					ifaceVal := value.([]interface{})[i].(map[string]interface{})
+					v, err := populateStructFromMap(
+						ifaceVal, reflect.New(reflectedStruct).Interface(), srcTypeName,
+					)
+					if err != nil {
+						return dstData, err
+					}
+					structList = append(structList, v)
+				}
+				value = structList
+			}
 		}
 		if value == nil {
 			continue
