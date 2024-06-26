@@ -239,6 +239,21 @@ func TestStructUnmarshal(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Empty(t, dst.Name)
 	})
+	t.Run("should skip processing empty slice source values", func(t *testing.T) {
+		name := "test"
+		dst := SystemStruct{}
+		src := APIObject{
+			Metadata: APIMetadata{
+				NameField: name,
+			},
+			Config: APIConfig{},
+		}
+
+		err := pkg.Unmarshal(src, &dst)
+
+		assert.Nil(t, err)
+		assert.Equal(t, name, dst.Name)
+	})
 }
 
 func TestStructMarshal(t *testing.T) {
