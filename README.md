@@ -1,5 +1,5 @@
 # struct-marshal
-Experimental tility to "encode" a go struct into another, using json encoding as intermediary.
+Experimental utility to "encode" a go struct into another, using json encoding as intermediary.
 
 Intended to translate between API objects and internal system abstractions, providing capabilities to configure how each field should be mapped.
 
