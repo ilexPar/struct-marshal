@@ -207,7 +207,7 @@ func (f *Field) getFieldValue(field reflect.Value) any {
 	switch field.Kind() {
 	case reflect.String:
 		return field.String()
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return field.Int()
 	case reflect.Bool:
 		return field.Bool()
