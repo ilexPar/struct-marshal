@@ -225,6 +225,9 @@ func populateMapFromStruct(
 	dstTypeName string,
 ) error {
 	v := reflect.ValueOf(src)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	for i := range v.NumField() {
 		field, err := NewField(i, v, dstTypeName)
 		if err != nil {

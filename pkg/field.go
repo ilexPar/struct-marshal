@@ -65,7 +65,11 @@ func (f *Field) GetPathAsParent() []string {
 }
 
 func (f *Field) IsStruct() bool {
-	return f.Kind == reflect.Struct
+	if f.Kind == reflect.Ptr {
+		return f.Value.Elem().Kind() == reflect.Struct
+	} else {
+		return f.Kind == reflect.Struct
+	}
 }
 
 func (f *Field) IsStructSlice() bool {

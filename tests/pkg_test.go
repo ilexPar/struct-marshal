@@ -31,10 +31,11 @@ type SystemStruct struct {
 
 // Mock a struct taking advantage of multiple destination types
 type SystemStructWithMultipleDestination struct {
-	Name          string                               `sm:"metadata.namefield,types<APIObject|SecondaryAPIObject>"`         // multiple type checks using unified path
-	Flag          bool                                 `sm:"+,types<APIObject:metadata.flag|SecondaryAPIObject:configflag>"` // multiple type checks using per type path
-	Blackhole     string                               `sm:"dismiss,types<InexistentType>"`                                  // this should be ignored
-	DismissNested NestedStructWithMultipleDestinations `sm:"->"`                                                             // let the nested fields declare the full destination path
+	Name                 string                                `sm:"metadata.namefield,types<APIObject|SecondaryAPIObject>"`         // multiple type checks using unified path
+	Flag                 bool                                  `sm:"+,types<APIObject:metadata.flag|SecondaryAPIObject:configflag>"` // multiple type checks using per type path
+	Blackhole            string                                `sm:"dismiss,types<InexistentType>"`                                  // this should be ignored
+	DismissNested        NestedStructWithMultipleDestinations  `sm:"->"`                                                             // let the nested fields declare the full destination path
+	DismissNestedPointer *NestedStructWithMultipleDestinations `sm:"->"`
 }
 type NestedStructWithMultipleDestinations struct {
 	Direction string `sm:"child.direction,types<SecondaryAPIObject>"`
@@ -368,9 +369,22 @@ func TestStructMarshal(t *testing.T) {
 		}
 		dst := &SecondaryAPIObject{}
 
-		err := pkg.Marshal(src, &dst)
+		err := pkg.Marshal(src, dst)
 
 		assert.Nil(t, err)
 		assert.Empty(t, dst.Metadata.NameField)
+	})
+	t.Run("should allow nested dismissal on pointers", func(t *testing.T) {
+		src := SystemStructWithMultipleDestination{
+			DismissNestedPointer: &NestedStructWithMultipleDestinations{
+				Direction: "up",
+			},
+		}
+
+		dst := &SecondaryAPIObject{}
+		err := pkg.Marshal(src, dst)
+
+		assert.Nil(t, err)
+		assert.Equal(t, src.DismissNestedPointer.Direction, dst.Child.Direction)
 	})
 }
