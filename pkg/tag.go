@@ -7,8 +7,9 @@ import (
 )
 
 type TypeMatch struct {
-	Path []string
-	Name string
+	Path    []string
+	Name    string
+	Matches bool
 }
 
 type TagOpts struct {
@@ -24,21 +25,22 @@ type FieldTag struct {
 
 // check naming convention when using "type matching" tag option
 // return values can either be:
-// - nil if no match is found but there are type-matching options set in this tag field
-// - an empty TypeMatch if no match is found and no type-matching options set in this tag field
+// - TypeMatch with `Matches` property set true if no type-matching options set in this tag field
+// - TypeMatch with `Matches` property set false if no match is found but there are type-matching options set in this tag field
 // - the TypeMatch description if a match is found
-func (t *FieldTag) findTypeMatch(typeName string) *TypeMatch {
-	matched := &TypeMatch{}
+func (t *FieldTag) findTypeMatch(typeName string) TypeMatch {
+	result := TypeMatch{Matches: true}
 	if len(t.Opts.MatchTypes) > 0 && typeName != "" {
-		matched = nil
+		result.Matches = false
 		for _, match := range t.Opts.MatchTypes {
 			if match.Name == typeName {
-				matched = &match
+				result = match
+				result.Matches = true
 				break
 			}
 		}
 	}
-	return matched
+	return result
 }
 
 // parseTag parses a field tag string into a FieldTag struct. The field tag string
@@ -76,7 +78,7 @@ func parseTagOpts(opts []string) TagOpts {
 	for _, opt := range opts {
 		typeMatches := matchTypeRegEx.FindStringSubmatch(opt)
 		if len(typeMatches) > 0 {
-			options.MatchTypes = parseTypeMatches(typeMatches[1])
+			parseTypeMatches(typeMatches[1], &options.MatchTypes)
 		}
 	}
 	return options
@@ -87,8 +89,7 @@ func parseTagOpts(opts []string) TagOpts {
 // Each type match consists of a type name and an optional field path, separated by a colon.
 // The field paths are split on periods to create the Path field of the TypeMatch struct.
 // The resulting slice contains one TypeMatch struct for each type match in the input string.
-func parseTypeMatches(data string) []TypeMatch {
-	matchDescription := []TypeMatch{}
+func parseTypeMatches(data string, matches *[]TypeMatch) {
 	parts := strings.Split(data, "|")
 	for _, typeOpt := range parts {
 		var fieldPath []string
@@ -97,11 +98,9 @@ func parseTypeMatches(data string) []TypeMatch {
 		if len(typeParts) > 1 {
 			fieldPath = strings.Split(typeParts[1], ".")
 		}
-		matchDescription = append(matchDescription, TypeMatch{
+		*matches = append(*matches, TypeMatch{
 			Name: typeName,
 			Path: fieldPath,
 		})
 	}
-
-	return matchDescription
 }
