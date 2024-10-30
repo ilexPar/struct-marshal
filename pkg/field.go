@@ -18,32 +18,23 @@ type Field struct {
 	Path    []string
 }
 
-// NewField creates a new Field instance from the provided struct value and root struct name.
+// Configures a Field instance from the provided struct value and root struct name.
 // It parses the field tag, resolves the field path, and sets the field's Kind, Skip, and tag properties.
 // If an error occurs during field path resolution, it is returned.
-func NewField(idx int, structValue reflect.Value, rootStruct string) (*Field, error) {
-	var err error
-	field := &Field{
-		Value:   structValue.Field(idx),
-		Target:  rootStruct,
-		stfield: structValue.Type().Field(idx),
-	}
-
-	field.Kind = field.Value.Kind()
-
-	tag, skip := parseTag(field.stfield)
-	field.tag = tag
+func (f *Field) Init(idx int, structValue reflect.Value, rootStruct string) (err error) {
+	f.Value = structValue.Field(idx)
+	f.Target = rootStruct
+	f.stfield = structValue.Type().Field(idx)
+	f.Kind = f.Value.Kind()
+	tag, skip := parseTag(f.stfield)
+	f.tag = tag
 
 	if skip {
-		field.Skip = skip
-		return field, err
+		f.Skip = skip
+		return err
 	}
 
-	if err := field.resolvePath(); err != nil {
-		return nil, err
-	}
-
-	return field, err
+	return f.resolvePath()
 }
 
 // SkipIfEmpty sets the Skip field to true if the Value field is the zero value.
@@ -103,15 +94,15 @@ func (f *Field) SetValueIntoMap(dst map[string]interface{}, path ...string) {
 	}
 }
 
-func initEmptyNestedMapField(nested NestedPath, dst map[string]interface{}) map[string]interface{} {
+func initEmptyNestedMapField(nested NestedPath, from map[string]interface{}) map[string]interface{} {
 	if nested.data == nil {
 		if nested.isArray {
-			dst[nested.field] = make([]interface{}, 1)
-			dst[nested.field].([]interface{})[nested.idx] = map[string]interface{}{}
-			return dst[nested.field].([]interface{})[nested.idx].(map[string]interface{})
+			from[nested.field] = make([]interface{}, 1)
+			from[nested.field].([]interface{})[nested.idx] = map[string]interface{}{}
+			return from[nested.field].([]interface{})[nested.idx].(map[string]interface{})
 		} else {
-			dst[nested.field] = map[string]interface{}{}
-			return dst[nested.field].(map[string]interface{})
+			from[nested.field] = map[string]interface{}{}
+			return from[nested.field].(map[string]interface{})
 		}
 	} else {
 		return nested.data
@@ -154,7 +145,7 @@ func (f *Field) resolvePath() error {
 	f.Path = f.tag.Path // default to tag main path
 
 	match := f.tag.findTypeMatch(f.Target)
-	if match != nil {
+	if match.Matches {
 		err = f.checkPerTypePathNaming(match)
 		if len(match.Path) > 0 {
 			// replace tag main path with type-matching path
@@ -174,7 +165,7 @@ func (f *Field) resolvePath() error {
 // The path is not valid if:
 // 1. The match has a path and the main path in the Field tag does not have the MULTI_TYPE_NAME value.
 // 2. The match has a path and the main path in the Field tag has more than one element.
-func (f *Field) checkPerTypePathNaming(match *TypeMatch) error {
+func (f *Field) checkPerTypePathNaming(match TypeMatch) error {
 	var err error
 	var failedCheck bool
 
@@ -232,7 +223,9 @@ func (f *Field) getFieldValue(field reflect.Value) any {
 		return result
 	case reflect.Struct:
 		result := map[string]any{}
-		populateMapFromStruct(field.Interface(), result, f.Target)
+		builder := &StructEncoder{}
+		builder.typeRestrain = f.Target
+		builder.generate(field.Interface(), result)
 		return result
 	case reflect.Ptr:
 		return f.getFieldValue(field.Elem())

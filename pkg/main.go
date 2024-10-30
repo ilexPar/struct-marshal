@@ -74,8 +74,6 @@
 package pkg
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
 )
 
@@ -91,27 +89,6 @@ const (
 	TYPE_OPTS_REGEX = `^types<([^>]+)>$`
 )
 
-// Marshal marshals the given the jsonpath compatible source to a JSON byte slice, and then unmarshals it into the given destination interface{}.
-// This function is intended to convert between system internal definitions and the destined API object.
-func Marshal(src interface{}, dst interface{}) error {
-	dstType := getTypeName(dst)
-	b, err := MarshalJSONPath(src, dstType)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(b, &dst)
-	return err
-}
-
-// Unmarshal marshals the given source and then unmarshals into the jsonpath compatible destination.
-// This function is intended to convert between the provided API object and the system internal definitions.
-func Unmarshal(src interface{}, dst interface{}) error {
-	b, _ := json.Marshal(src)
-	srcType := getTypeName(src)
-	err := UnmarshalJSONPath(b, dst, srcType)
-	return err
-}
-
 func getTypeName(t interface{}) string {
 	val := reflect.ValueOf(t)
 
@@ -122,128 +99,24 @@ func getTypeName(t interface{}) string {
 	return val.Type().Name()
 }
 
-// UnmarshalJSONPath unmarshals the given JSON byte slice into the provided destination interface.
-// The destination interface must be a non-nil pointer. The function uses the "jsonpath" struct tags
-// on the destination interface fields to map the JSON data to the appropriate fields.
-func UnmarshalJSONPath(src []byte, dst interface{}, srcTypeName string) error {
-	rd := reflect.ValueOf(dst)
-	if rd.Kind() != reflect.Pointer || rd.IsNil() {
-		return fmt.Errorf("dst must be a non-nil pointer")
-	}
-
-	srcData := map[string]interface{}{}
-	err := json.Unmarshal(src, &srcData)
-	if err != nil {
+// Unmarshal marshals the given source and then unmarshals into the jsonpath compatible destination.
+// This function is intended to convert between the provided API object and the system internal definitions.
+func Unmarshal(src interface{}, dst interface{}) (err error) {
+	decoder := &StructDecoder{}
+	if err := decoder.Init(src, dst); err != nil {
 		return err
 	}
-	dstData, err := populateStructFromMap(srcData, dst, srcTypeName)
-	if err != nil {
+
+	return decoder.Run()
+}
+
+// Marshal marshals the given jsonpath compatible source to a JSON byte slice,
+// and then unmarshals it into the given destination interface{}.
+// This function is intended to convert between system internal definitions and the destined API object.
+func Marshal(src interface{}, dst interface{}) error {
+	encoder := &StructEncoder{}
+	if err := encoder.Init(src, dst); err != nil {
 		return err
 	}
-	jsonData, _ := json.Marshal(dstData)
-	return json.Unmarshal(jsonData, dst)
-}
-
-func populateStructFromMap(
-	src map[string]interface{},
-	dst interface{},
-	srcTypeName string,
-	parents ...string,
-) (map[string]interface{}, error) {
-	dstData := map[string]interface{}{}
-	v := reflect.ValueOf(dst)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	for i := range v.NumField() {
-		field, err := NewField(i, v, srcTypeName)
-		if err != nil {
-			return dstData, err
-		}
-		if field.Skip {
-			continue
-		}
-
-		field.ChRoot(parents)
-		var value any
-		if field.IsStruct() {
-			// handle nested structs
-			value, err = populateStructFromMap(
-				src, field.Value.Interface(), srcTypeName, field.GetPathAsParent()...,
-			)
-			if err != nil {
-				return dstData, err
-			}
-		} else {
-			value = field.GetValueFromMap(src)
-		}
-		if value == nil {
-			continue
-		}
-		if field.IsStructSlice() {
-			value, err = handleStructSlice(value, field, srcTypeName)
-			if err != nil {
-				return dstData, err
-			}
-		}
-		dstData[field.stfield.Name] = value
-	}
-	return dstData, nil
-}
-
-func handleStructSlice(value any, field *Field, srcTypeName string) ([]any, error) {
-	structList := []any{}
-	reflectedStruct := field.Value.Type().Elem()
-	for i := range value.([]interface{}) {
-		ifaceVal := value.([]interface{})[i].(map[string]interface{})
-		v, err := populateStructFromMap(
-			ifaceVal, reflect.New(reflectedStruct).Interface(), srcTypeName,
-		)
-		if err != nil {
-			return structList, err
-		}
-		structList = append(structList, v)
-	}
-	return structList, nil
-}
-
-// MarshalJSONPath converts the given source interface{} to a JSON-encoded byte slice,
-// using the JSON field tags defined on the source struct to map the fields to the
-// resulting JSON object.
-func MarshalJSONPath(src interface{}, dstTypeName string) ([]byte, error) {
-	data := map[string]interface{}{}
-	err := populateMapFromStruct(src, data, dstTypeName)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(data)
-}
-
-func populateMapFromStruct(
-	src interface{},
-	dst map[string]interface{},
-	dstTypeName string,
-) error {
-	v := reflect.ValueOf(src)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	for i := range v.NumField() {
-		field, err := NewField(i, v, dstTypeName)
-		if err != nil {
-			return err
-		}
-		field.SkipIfEmpty()
-		if field.Skip {
-			continue
-		}
-		if field.IsStruct() && field.DissmisNesting(field.Path) {
-			// if dismiss nesting then treat the child struct fields as if they
-			// were defined in the parent struct
-			populateMapFromStruct(field.Value.Interface(), dst, dstTypeName)
-		} else {
-			field.SetValueIntoMap(dst)
-		}
-	}
-	return nil
+	return encoder.Run()
 }
