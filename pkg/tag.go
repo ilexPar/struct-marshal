@@ -26,7 +26,8 @@ type FieldTag struct {
 // check naming convention when using "type matching" tag option
 // return values can either be:
 // - TypeMatch with `Matches` property set true if no type-matching options set in this tag field
-// - TypeMatch with `Matches` property set false if no match is found but there are type-matching options set in this tag field
+// - TypeMatch with `Matches` property set false if no match is found but there are type-matching options set in this
+// tag field
 // - the TypeMatch description if a match is found
 func (t *FieldTag) findTypeMatch(typeName string) TypeMatch {
 	result := TypeMatch{Matches: true}

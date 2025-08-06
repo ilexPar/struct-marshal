@@ -1,10 +1,12 @@
 // Experimental utility to "encode" a go struct into another, using json encoding as intermediary.
 //
-// Intended to translate between API objects and internal system abstractions, providing capabilities to configure how each field should be mapped.
+// Intended to translate between API objects and internal system abstractions, providing capabilities to configure how
+// each field should be mapped.
 //
 // # Usage
 //
-// The most basic usage is to annotate your struct fields with the `sm` tag, specifying the "jsonpath" to the field in the destination object.
+// The most basic usage is to annotate your struct fields with the `sm` tag, specifying the "jsonpath" to the field in
+// the destination object.
 //
 //	type MyStruct struct {
 //	    Name string `sm:metadata.name`
@@ -28,7 +30,8 @@
 //
 // # Type Matching
 //
-// By default types wont be checked, but you can specify type matching option like `types<SomeType>`. Multiple types can be annotated for each field using `|` as separator.
+// By default types wont be checked, but you can specify type matching option like `types<SomeType>`. Multiple types can
+// be annotated for each field using `|` as separator.
 // When types don't match field will be skipped
 //
 // Example:
@@ -40,7 +43,8 @@
 //
 // # Per Type Path
 //
-// You can specify a different path for each type by appending the path to the type using `:` as separator in the `types<>` option.
+// You can specify a different path for each type by appending the path to the type using `:` as separator in the
+// `types<>` option.
 //
 // Keep in mind:
 //
@@ -56,7 +60,8 @@
 //
 // # Nesting
 //
-// By default fields that are structs will inherit the parent path, but you can dismiss this by using the `->` operator as field name in order for the path to be fully processed
+// By default fields that are structs will inherit the parent path, but you can dismiss this by using the `->` operator
+// as field name in order for the path to be fully processed
 //
 // Example:
 //
@@ -78,11 +83,16 @@ import (
 )
 
 const (
-	FIELD_TAG_KEY    = "sm" // field tag to parse
-	TYPES_SPLIT      = "|"  // type separator when encoding to multiple types from a single source, eg sm:"example,types<Struct1|Struct2>"
-	TYPES_PATH_SPLIT = ":"  // type path separator when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
-	DISMISS_NESTED   = "->" // path to be used when dismissing path nesting
-	MULTI_TYPE_NAME  = "+"  // path name to be used when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
+	// field tag to parse
+	FIELD_TAG_KEY = "sm"
+	// type separator when encoding to multiple types from a single source, eg sm:"example,types<Struct1|Struct2>"
+	TYPES_SPLIT = "|"
+	// type path separator when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
+	TYPES_PATH_SPLIT = ":"
+	// path to be used when dismissing path nesting
+	DISMISS_NESTED = "->"
+	// path name to be used when setting per type path, eg sm:"+,types<Struct1:path.one|Struct2:path.name>"
+	MULTI_TYPE_NAME = "+"
 
 	ERROR_PER_TYPE_PATH_IS_NOT_VALID = "main path should be '+' when using per-type path matching"
 

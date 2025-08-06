@@ -51,7 +51,8 @@ func (sb *StructDecoder) Init(src interface{}, dst interface{}) (err error) {
 
 // Run generates a map[string]interface{} representation of the dst struct, using the values from the src interface{}.
 // It first converts the src interface{} to a map[string]interface{} using the toMap function.
-// It then recursively generates the map[string]interface{} representation of the dst struct by calling the generate function.
+// It then recursively generates the map[string]interface{} representation of the dst struct by calling the generate
+// function.
 // Finally, it marshals the generated map[string]interface{} to JSON and unmarshals it into the dst pointer.
 // The function returns an error if any errors occur during the generation process.
 func (sb StructDecoder) Run() (err error) {
@@ -77,13 +78,21 @@ func (sb StructDecoder) Run() (err error) {
 	}
 }
 
-// generate recursively generates a map[string]interface{} representation of the dst struct, using the values from the src map[string]interface{}.
+// generate recursively generates a map[string]interface{} representation of the dst struct, using the values from the
+// src map[string]interface{}.
 // It iterates through each field in the dst struct, and for each field:
 // - If the field is a struct, it recursively calls generate() to generate a map[string]interface{} for that struct.
-// - If the field is a slice of structs, it calls generateSlice() to generate a slice of map[string]interface{} for that slice.
+// - If the field is a slice of structs, it calls generateSlice() to generate a slice of map[string]interface{} for that
+// slice.
 // - Otherwise, it gets the value for that field from the src map and adds it to the into map.
 // The function returns an error if any errors occur during the generation process.
-func (sb StructDecoder) generate(src map[string]interface{}, typeRestrain string, dst reflect.Value, into map[string]interface{}, parents ...string) error {
+func (sb StructDecoder) generate(
+	src map[string]interface{},
+	typeRestrain string,
+	dst reflect.Value,
+	into map[string]interface{},
+	parents ...string,
+) error {
 	for i := range dst.NumField() {
 		field := &Field{}
 		if err := field.Init(i, dst, sb.typeRestrain); err != nil {
@@ -124,10 +133,12 @@ func (sb StructDecoder) generate(src map[string]interface{}, typeRestrain string
 	return nil
 }
 
-// generateSlice recursively generates a slice of map[string]interface{} representations of the elements in the value slice, using the dst struct type specified by the field parameter.
+// generateSlice recursively generates a slice of map[string]interface{} representations of the elements in the value
+// slice, using the dst struct type specified by the field parameter.
 // It iterates through each element in the value slice, and for each element:
 // - It creates a new map[string]interface{} to hold the representation of the element.
-// - It calls the generate() function to recursively generate the map[string]interface{} representation of the element, using the element's map[string]interface{} value and the dst struct type.
+// - It calls the generate() function to recursively generate the map[string]interface{} representation of the element,
+// using the element's map[string]interface{} value and the dst struct type.
 // - It appends the generated map[string]interface{} to the out slice.
 // The function returns an error if any errors occur during the generation process.
 func (sb StructDecoder) generateSlice(value []interface{}, field *Field, typeRestrain string, out *[]any) error {

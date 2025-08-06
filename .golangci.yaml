@@ -1,0 +1,92 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+output:
+  formats:
+    html:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      path: ./analysis-report.html
+  show-stats: false
+
+linters:
+  default: none
+  enable:
+    # Default Go linters
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # Additional useful linters
+    - lll
+    - goconst
+    - gocyclo
+    - gosec
+    - gocritic
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    lll:
+      line-length: 120
+
+    staticcheck:
+      checks:
+        - -ST1006
+
+    # Gocyclo: cyclomatic complexity
+    gocyclo:
+      # Minimal code complexity to report.
+      min-complexity: 10
+
+  exclusions:
+    rules:
+      # Relax rules for test files
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - lll
+
+formatters:
+  enable:
+    - golines
+    - swaggo
+    - gci
+    # - goimports
+  settings:
+    golines:
+      max-len: 120
+      shorten-comments: true
+
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/ilexPar/struct-marshal)
+        - localmodule
+      custom-order: true
+
+    # goimports:
+    #   # A list of prefixes, which, if set, checks import paths
+    #   # with the given prefixes are grouped after 3rd-party packages.
+    #   # Default: []
+    #   local-prefixes:
+    #     - github.com/ilexPar/simple-kube
+
+issues:
+  # fix: true
+  # Don't hide multiple issues on the same line
+  max-same-issues: 0
+  # exclude-dirs:
+  #   - vendor
+  #   - third_party
+  # exclude-files:
+  #   - ".*\\.pb\\.go$"
+  #   - ".*\\.gen\\.go$"

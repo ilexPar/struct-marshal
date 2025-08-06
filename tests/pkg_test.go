@@ -3,9 +3,9 @@ package pkg_test
 import (
 	"testing"
 
-	"github.com/ilexPar/struct-marshal/pkg"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ilexPar/struct-marshal/pkg"
 )
 
 // Mock a struct internal to an application
