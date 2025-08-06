@@ -93,6 +93,10 @@ func (sb StructDecoder) generate(
 	into map[string]interface{},
 	parents ...string,
 ) error {
+	if dst.Kind() == reflect.Ptr {
+		dst = dst.Elem()
+	}
+
 	for i := range dst.NumField() {
 		field := &Field{}
 		if err := field.Init(i, dst, sb.typeRestrain); err != nil {

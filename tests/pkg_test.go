@@ -90,6 +90,16 @@ func TestStructUnmarshal(t *testing.T) {
 		err := pkg.Unmarshal(src, dst1)
 		assert.NotNil(t, err, "Expected error when destination interface is not a pointer")
 	})
+	t.Run("correctly unmarshal when dst nested struct fields are non-nil pointers", func(t *testing.T) {
+		dst := SystemStruct{
+			NestedPointer: &SystemNested{
+				Direction: "up",
+			},
+		}
+		src := APIObject{}
+		err := pkg.Unmarshal(src, &dst)
+		assert.Nil(t, err, "Expected no error when destination has non nil pointers to structs")
+	})
 	t.Run("correct unmarshal", func(t *testing.T) {
 		name := "test"
 		count := 999
